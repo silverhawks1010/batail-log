@@ -120,27 +120,26 @@ exports.getProductById = (req, res) => {
  * ```
  */
 exports.createProduct = (req, res) => {
-  console.log('Creating product with body:', req.body);
   const { title, description, price, condition } = req.body;
 
-  // Validation des champs obligatoires
   if (!title || !description || !price || !condition) {
-    return res.status(400).json({ error: 'All fields are required' });
+    return res.status(400).json({ error: 'Tous les champs sont obligatoires.' });
   }
 
-  // Insertion du nouveau produit
-  db.run('INSERT INTO products (title, description, price, condition) VALUES (?, ?, ?, ?)',
+  db.run(
+    'INSERT INTO products (title, description, price, condition) VALUES (?, ?, ?, ?)',
     [title, description, price, condition],
-    function(err) {
+    function (err) {
       if (err) {
-        console.error('Error creating product:', err.message);
-        return res.status(500).json({ error: 'Internal server error' });
+        if (err.message.includes('UNIQUE constraint failed')) {
+          return res.status(409).json({ error: 'Un produit avec ce nom existe déjà.' });
+        }
+        return res.status(500).json({ error: 'Erreur interne du serveur.' });
       }
-      // Retourne l'ID du produit créé
       res.status(201).json({ id: this.lastID });
     }
   );
-}
+};
 
 /**
  * Met à jour un produit existant
@@ -176,27 +175,27 @@ exports.updateProduct = (req, res) => {
   const id = req.params.id;
   const { title, description, price, condition } = req.body;
 
-  // Validation des champs obligatoires
   if (!title || !description || !price || !condition) {
-    return res.status(400).json({ error: 'All fields are required' });
+    return res.status(400).json({ error: 'Tous les champs sont obligatoires.' });
   }
 
-  // Mise à jour du produit
-  db.run('UPDATE products SET title = ?, description = ?, price = ?, condition = ? WHERE id = ?',
+  db.run(
+    'UPDATE products SET title = ?, description = ?, price = ?, condition = ? WHERE id = ?',
     [title, description, price, condition, id],
-    function(err) {
+    function (err) {
       if (err) {
-        console.error('Error updating product:', err.message);
-        return res.status(500).json({ error: 'Internal server error' });
+        if (err.message.includes('UNIQUE constraint failed')) {
+          return res.status(409).json({ error: 'Un produit avec ce nom existe déjà.' });
+        }
+        return res.status(500).json({ error: 'Erreur interne du serveur.' });
       }
-      // Vérification si le produit a été trouvé et modifié
       if (this.changes === 0) {
-        return res.status(404).json({ error: 'Product not found' });
+        return res.status(404).json({ error: 'Produit non trouvé.' });
       }
-      res.json({ message: 'Product updated successfully' });
+      res.json({ message: 'Produit modifié avec succès.' });
     }
   );
-}
+};
 
 /**
  * Supprime un produit
@@ -233,101 +232,4 @@ exports.deleteProduct = (req, res) => {
     }
     res.json({ message: 'Product deleted successfully' });
   });
-}
-
-/**
- * Génère automatiquement 100 produits de test
- * @description Crée 100 produits avec des données aléatoires pour les tests et démonstrations
- * 
- * @async
- * @function generateTestProducts
- * @param {import('express').Request} req - Objet requête Express
- * @param {import('express').Response} res - Objet réponse Express
- * @returns {Promise<void>} Envoie le nombre de produits créés ou erreur
- * @throws {Error} En cas d'erreur de base de données
- * 
- * @example
- * ```javascript
- * // POST /api/products/generate
- * // Retourne: { "message": "100 test products generated successfully", "count": 100 }
- * ```
- */
-exports.generateTestProducts = (req, res) => {
-  // Données de test pour générer des produits variés
-  const productTemplates = [
-    {
-      titles: ['iPhone', 'Samsung Galaxy', 'MacBook Pro', 'Dell XPS', 'iPad', 'Surface Pro', 'PlayStation', 'Xbox', 'Nintendo Switch', 'AirPods'],
-      descriptions: [
-        'Smartphone de dernière génération avec performances exceptionnelles',
-        'Ordinateur portable professionnel pour tous vos besoins',
-        'Tablette tactile avec écran haute résolution',
-        'Console de jeu nouvelle génération',
-        'Écouteurs sans fil avec qualité audio premium',
-        'Montre connectée avec suivi santé avancé',
-        'Caméra numérique haute définition',
-        'Écran 4K pour une expérience immersive',
-        'Clavier mécanique pour gamers',
-        'Souris sans fil ergonomique'
-      ],
-      conditions: ['bon', 'moyen', 'mauvais'],
-      priceRanges: [
-        { min: 100, max: 500 },
-        { min: 500, max: 1000 },
-        { min: 1000, max: 2000 },
-        { min: 2000, max: 5000 }
-      ]
-    }
-  ];
-
-  const template = productTemplates[0];
-  const productsToCreate = [];
-  const count = 100;
-
-  // Génération des données pour 100 produits
-  for (let i = 1; i <= count; i++) {
-    const title = template.titles[Math.floor(Math.random() * template.titles.length)];
-    const description = template.descriptions[Math.floor(Math.random() * template.descriptions.length)];
-    const condition = template.conditions[Math.floor(Math.random() * template.conditions.length)];
-    const priceRange = template.priceRanges[Math.floor(Math.random() * template.priceRanges.length)];
-    const price = Math.floor(Math.random() * (priceRange.max - priceRange.min + 1)) + priceRange.min;
-
-    productsToCreate.push({
-      title: `${title} ${i}`,
-      description: `${description} - Modèle ${i}`,
-      price: price,
-      condition: condition
-    });
-  }
-
-  // Insertion en lot des produits
-  const insertPromises = productsToCreate.map(product => {
-    return new Promise((resolve, reject) => {
-      db.run(
-        'INSERT INTO products (title, description, price, condition) VALUES (?, ?, ?, ?)',
-        [product.title, product.description, product.price, product.condition],
-        function(err) {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(this.lastID);
-          }
-        }
-      );
-    });
-  });
-
-  // Exécution de toutes les insertions
-  Promise.all(insertPromises)
-    .then((ids) => {
-      console.log(`Successfully generated ${count} test products`);
-      res.status(201).json({
-        message: `${count} test products generated successfully`,
-        count: count,
-        generatedIds: ids
-      });
-    })
-    .catch((err) => {
-      console.error('Error generating test products:', err.message);
-      res.status(500).json({ error: 'Internal server error while generating test products' });
-    });
 }

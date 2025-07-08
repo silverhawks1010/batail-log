@@ -14,7 +14,12 @@ function HomePage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortField, setSortField] = useState<SortField>('title');
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-    const [generating, setGenerating] = useState(false);
+    const [minPrice, setMinPrice] = useState('');
+    const [maxPrice, setMaxPrice] = useState('');
+    const [filterCondition, setFilterCondition] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(20);
+    const itemsPerPageOptions = [10, 20, 50, 100];
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -32,43 +37,6 @@ function HomePage() {
             console.error('Error loading products:', err);
         } finally {
             setLoading(false);
-        }
-    };
-
-    /**
-     * Génère automatiquement 100 produits de test
-     * @description Appelle l'API pour créer 100 produits avec des données aléatoires
-     * 
-     * @async
-     * @function handleGenerateTestProducts
-     * @returns {Promise<void>}
-     * @throws {Error} En cas d'erreur lors de la génération
-     * 
-     * @example
-     * ```typescript
-     * // Appelé lors du clic sur le bouton "Générer des produits de test"
-     * await handleGenerateTestProducts();
-     * ```
-     */
-    const handleGenerateTestProducts = async () => {
-        if (!confirm('Êtes-vous sûr de vouloir générer 100 produits de test ? Cette action ne peut pas être annulée.')) {
-            return;
-        }
-
-        try {
-            setGenerating(true);
-            const result = await productApi.generateTestProducts();
-            
-            // Afficher un message de succès
-            alert(`${result.count} produits de test ont été générés avec succès !`);
-            
-            // Recharger la liste des produits
-            await loadProducts();
-        } catch (err) {
-            alert('Erreur lors de la génération des produits de test');
-            console.error('Error generating test products:', err);
-        } finally {
-            setGenerating(false);
         }
     };
 
@@ -112,10 +80,18 @@ function HomePage() {
 
     // Filtrage et tri
     const filteredAndSortedProducts = products
-        .filter(product => 
-            product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            product.description.toLowerCase().includes(searchTerm.toLowerCase())
-        )
+        .filter(product => {
+            // Filtre texte
+            const matchesText =
+                product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                product.description.toLowerCase().includes(searchTerm.toLowerCase());
+            // Filtre prix
+            const matchesMin = minPrice ? product.price >= parseFloat(minPrice) : true;
+            const matchesMax = maxPrice ? product.price <= parseFloat(maxPrice) : true;
+            // Filtre état
+            const matchesCondition = filterCondition ? product.condition === filterCondition : true;
+            return matchesText && matchesMin && matchesMax && matchesCondition;
+        })
         .sort((a, b) => {
             let aValue: string | number = a[sortField];
             let bValue: string | number = b[sortField];
@@ -130,6 +106,11 @@ function HomePage() {
             if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
             return 0;
         });
+
+    // Pagination
+    const totalProducts = filteredAndSortedProducts.length;
+    const totalPages = Math.ceil(totalProducts / itemsPerPage);
+    const paginatedProducts = filteredAndSortedProducts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     if (loading) {
         return (
@@ -158,27 +139,36 @@ function HomePage() {
                 <p className="page-subtitle">Gérez vos produits en toute simplicité</p>
             </div>
 
-            {/* Section des actions rapides */}
-            <div className="actions-section">
-                <div className="actions-left">
-                    <Link to="/add" className="btn btn-primary">
-                        + Ajouter un produit
-                    </Link>
+            {/* Ligne fusionnée : ajout + filtres */}
+            <div className="filters-actions-bar" style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', marginBottom: 20 }}>
+                <Link to="/add" className="btn btn-primary">
+                    + Ajouter un produit
+                </Link>
+                <div className="filters-section" style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', margin: 0 }}>
+                    <div>
+                        <label htmlFor="minPrice">Prix min :</label>
+                        <input id="minPrice" type="number" min="0" value={minPrice} onChange={e => setMinPrice(e.target.value)} placeholder="0" />
+                    </div>
+                    <div>
+                        <label htmlFor="maxPrice">Prix max :</label>
+                        <input id="maxPrice" type="number" min="0" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} placeholder="9999" />
+                    </div>
+                    <div>
+                        <label htmlFor="filterCondition">État :</label>
+                        <select id="filterCondition" value={filterCondition} onChange={e => setFilterCondition(e.target.value)}>
+                            <option value="">Tous</option>
+                            <option value="bon">Bon</option>
+                            <option value="moyen">Moyen</option>
+                            <option value="mauvais">Mauvais</option>
+                        </select>
+                    </div>
+                    {(minPrice || maxPrice || filterCondition) && (
+                        <button type="button" className="btn btn-secondary" onClick={() => { setMinPrice(''); setMaxPrice(''); setFilterCondition(''); }}>
+                            Réinitialiser les filtres
+                        </button>
+                    )}
                 </div>
-                <div className="actions-right">
-                    <button
-                        onClick={handleGenerateTestProducts}
-                        disabled={generating}
-                        className={`btn btn-secondary ${generating ? 'btn-loading' : ''}`}
-                        title="Générer 100 produits de test avec des données aléatoires"
-                    >
-                        {generating ? '⏳ Génération...' : '🎲 Générer 100 produits de test'}
-                    </button>
-                </div>
-            </div>
-
-            <div className="search-section">
-                <div className="search-box">
+                <div className="search-box" style={{ flex: 1, minWidth: 200 }}>
                     <input
                         type="text"
                         placeholder="Rechercher par titre ou description..."
@@ -188,37 +178,45 @@ function HomePage() {
                     />
                     <span className="search-icon">🔍</span>
                 </div>
-                <div className="results-count">
-                    {filteredAndSortedProducts.length} produit(s) trouvé(s)
-                </div>
             </div>
 
-            {filteredAndSortedProducts.length === 0 ? (
+            {/* Pagination : choix du nombre d'éléments par page et navigation */}
+            <div className="pagination-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                    <span>Afficher </span>
+                    <select value={itemsPerPage} onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}>
+                        {itemsPerPageOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                    <span> par page</span>
+                </div>
+                <div>
+                    <button className="btn btn-secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>&laquo;</button>
+                    <button className="btn btn-secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))}>&lsaquo;</button>
+                    <span style={{ margin: '0 8px' }}>Page {currentPage} / {totalPages || 1}</span>
+                    <button className="btn btn-secondary" disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}>&rsaquo;</button>
+                    <button className="btn btn-secondary" disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage(totalPages)}>&raquo;</button>
+                </div>
+                <div className="results-count">{totalProducts} produit(s) trouvé(s)</div>
+            </div>
+
+            {/* Table et reste du code */}
+            {paginatedProducts.length === 0 ? (
                 <div className="empty-state">
                     <div className="empty-icon">📦</div>
                     <h3>Aucun produit trouvé</h3>
                     <p>
-                        {searchTerm 
+                        {searchTerm
                             ? `Aucun produit ne correspond à "${searchTerm}"`
                             : "Aucun produit n'est disponible pour le moment"
                         }
                     </p>
                     <div className="empty-actions">
                         {searchTerm && (
-                            <button 
-                                onClick={() => setSearchTerm('')} 
+                            <button
+                                onClick={() => setSearchTerm('')}
                                 className="btn btn-secondary"
                             >
                                 Effacer la recherche
-                            </button>
-                        )}
-                        {!searchTerm && (
-                            <button 
-                                onClick={handleGenerateTestProducts}
-                                disabled={generating}
-                                className={`btn btn-primary ${generating ? 'btn-loading' : ''}`}
-                            >
-                                {generating ? '⏳ Génération...' : '🎲 Générer des produits de test'}
                             </button>
                         )}
                     </div>
@@ -228,20 +226,20 @@ function HomePage() {
                     <table className="modern-table">
                         <thead>
                             <tr>
-                                <th 
+                                <th
                                     onClick={() => handleSort('title')}
                                     className="sortable-header"
                                 >
                                     Titre {getSortIcon('title')}
                                 </th>
                                 <th>Description</th>
-                                <th 
+                                <th
                                     onClick={() => handleSort('price')}
                                     className="sortable-header"
                                 >
                                     Prix {getSortIcon('price')}
                                 </th>
-                                <th 
+                                <th
                                     onClick={() => handleSort('condition')}
                                     className="sortable-header"
                                 >
@@ -251,13 +249,13 @@ function HomePage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredAndSortedProducts.map(product => (
+                            {paginatedProducts.map(product => (
                                 <tr key={product.id} className="table-row">
                                     <td className="product-title">
                                         {product.title}
                                     </td>
                                     <td className="product-description">
-                                        {product.description.length > 50 
+                                        {product.description.length > 50
                                             ? `${product.description.substring(0, 50)}...`
                                             : product.description
                                         }

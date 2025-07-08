@@ -76,22 +76,6 @@ router.get('/:id', productController.getProductById);
 router.post('/', productController.createProduct);
 
 /**
- * Route POST /generate - Génération de produits de test
- * @description Génère automatiquement 100 produits avec des données aléatoires
- * @route POST /generate
- * @returns {Object} Nombre de produits créés et message de succès
- * 
- * @example
- * ```bash
- * # Générer 100 produits de test
- * POST /api/products/generate
- * 
- * # Réponse: { "message": "100 test products generated successfully", "count": 100 }
- * ```
- */
-router.post('/generate', productController.generateTestProducts);
-
-/**
  * Route PUT /:id - Mise à jour d'un produit existant
  * @description Met à jour un produit existant avec validation des données
  * @route PUT /:id

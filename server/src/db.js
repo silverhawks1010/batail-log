@@ -8,77 +8,38 @@
 
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
-/**
- * Instance de connexion à la base de données SQLite
- * @description Connexion persistante à la base de données avec gestion d'erreurs
- * @type {import('sqlite3').Database}
- * 
- * @example
- * ```javascript
- * // Utilisation dans les contrôleurs
- * const db = require('../db');
- * db.all('SELECT * FROM products', [], (err, rows) => {
- *   if (err) console.error(err);
- *   else console.log(rows);
- * });
- * ```
- */
-const db = new sqlite3.Database(path.join(__dirname, 'database.db'), (err) => {
+const dbPath = path.join(__dirname, 'database.db');
+const sqlPath = path.join(__dirname, '../../db/produits_realistes.sql');
+
+// Vérifier si la base existe déjà
+const dbExists = fs.existsSync(dbPath);
+
+// Créer la connexion (cela crée le fichier si besoin)
+const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('Error opening database:', err.message);
   } else {
     console.log('Connected to the SQLite database.');
+    // Si la base n’existait pas, charger le SQL
+    if (!dbExists) {
+      if (fs.existsSync(sqlPath)) {
+        const sql = fs.readFileSync(sqlPath, 'utf-8');
+        db.exec(sql, (err) => {
+          if (err) {
+            console.error('Erreur lors de l’import SQL:', err.message);
+          } else {
+            console.log('Données importées depuis produits_realistes.sql');
+          }
+        });
+      } else {
+        console.warn('produits_realistes.sql non trouvé, aucun produit chargé par défaut.');
+      }
+    }
   }
 });
 
-/**
- * Initialisation de la base de données
- * @description Crée les tables nécessaires si elles n'existent pas
- * 
- * @function db.serialize
- * @description Exécute les requêtes SQL de manière séquentielle pour assurer l'ordre d'exécution
- * 
- * @example
- * ```sql
- * -- Création de la table products avec contraintes
- * CREATE TABLE IF NOT EXISTS products (
- *   id INTEGER PRIMARY KEY AUTOINCREMENT,
- *   title TEXT UNIQUE NOT NULL,
- *   description TEXT NOT NULL,
- *   price REAL NOT NULL CHECK (price > 0),
- *   condition TEXT CHECK (condition IN ('bon', 'moyen', 'mauvais')) NOT NULL
- * );
- * ```
- */
-db.serialize(() => {
-  /**
-   * Création de la table products
-   * @description Table principale pour stocker les informations des produits
-   * 
-   * Contraintes définies :
-   * - id : Clé primaire auto-incrémentée
-   * - title : Unique et non null (évite les doublons)
-   * - description : Non null
-   * - price : Non null et strictement positif
-   * - condition : Valeurs autorisées : 'bon', 'moyen', 'mauvais'
-   */
-  db.run(`
-    CREATE TABLE IF NOT EXISTS products (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT UNIQUE NOT NULL,
-      description TEXT NOT NULL,
-      price REAL NOT NULL CHECK (price > 0),
-      condition TEXT CHECK (condition IN ('bon', 'moyen', 'mauvais')) NOT NULL
-    )
-  `);
-});
-
-/**
- * Export de l'instance de base de données
- * @description Instance SQLite configurée et prête à l'utilisation
- * @type {import('sqlite3').Database}
- */
 module.exports = db;
 
 

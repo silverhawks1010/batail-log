@@ -49,29 +49,31 @@ const api = axios.create({
  * ```
  */
 api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        console.error('API Error:', error);
-        
-        // Gestion des erreurs courantes avec messages en français
-        if (error.code === 'ECONNABORTED') {
-            throw new Error('Délai d\'attente dépassé. Vérifiez votre connexion.');
-        }
-        
-        if (error.response?.status === 404) {
-            throw new Error('Ressource non trouvée.');
-        }
-        
-        if (error.response?.status === 500) {
-            throw new Error('Erreur serveur. Veuillez réessayer plus tard.');
-        }
-        
-        if (!error.response) {
-            throw new Error('Impossible de se connecter au serveur. Vérifiez que le backend est démarré.');
-        }
-        
-        throw error;
+  (response) => response,
+  (error) => {
+    // Serveur injoignable ou timeout
+    if (error.code === 'ECONNABORTED' || !error.response) {
+      throw new Error('Serveur injoignable. Vérifiez votre connexion ou que le backend est démarré.');
     }
+    // Message d'erreur précis du backend
+    if (error.response?.data?.error) {
+      throw new Error(error.response.data.error);
+    }
+    // Cas particuliers
+    if (error.response?.status === 404) {
+      throw new Error('Ressource non trouvée.');
+    }
+    if (error.response?.status === 409) {
+      throw new Error('Un produit avec ce nom existe déjà.');
+    }
+    if (error.response?.status === 400) {
+      throw new Error('Requête invalide. Vérifiez les champs du formulaire.');
+    }
+    if (error.response?.status === 500) {
+      throw new Error('Erreur interne du serveur.');
+    }
+    throw error;
+  }
 );
 
 /**
@@ -288,31 +290,6 @@ export const productApi = {
      */
     searchProducts: async (searchTerm: string): Promise<Product[]> => {
         const response = await api.get<Product[]>(`/search?q=${searchTerm}`);
-        return response.data;
-    },
-
-    /**
-     * Génère automatiquement 100 produits de test
-     * @description Effectue une requête POST vers l'endpoint /api/products/generate
-     * 
-     * @async
-     * @function generateTestProducts
-     * @returns {Promise<GenerateTestProductsResponse>} Promise résolue avec les détails de la génération
-     * @throws {Error} En cas d'erreur de connexion ou serveur
-     * 
-     * @example
-     * ```typescript
-     * try {
-     *   const result = await productApi.generateTestProducts();
-     *   console.log(`${result.count} produits générés avec succès`);
-     *   console.log(`IDs générés: ${result.generatedIds.join(', ')}`);
-     * } catch (error) {
-     *   console.error('Erreur lors de la génération:', error.message);
-     * }
-     * ```
-     */
-    generateTestProducts: async (): Promise<GenerateTestProductsResponse> => {
-        const response = await api.post<GenerateTestProductsResponse>('/generate');
         return response.data;
     },
 };

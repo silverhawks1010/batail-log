@@ -95,8 +95,12 @@ function AddPage() {
 
       await productApi.createProduct(productData);
       navigate('/');
-    } catch (err) {
-      setErrors({ general: 'Erreur lors de la création du produit' });
+    } catch (err: unknown) {
+      let errorMessage = 'Erreur lors de la création du produit';
+      if (err && typeof err === 'object' && 'message' in err && typeof (err as { message?: unknown }).message === 'string') {
+        errorMessage = (err as { message: string }).message;
+      }
+      setErrors({ general: errorMessage });
       console.error('Error creating product:', err);
     } finally {
       setLoading(false);
