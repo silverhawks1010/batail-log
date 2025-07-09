@@ -13,9 +13,9 @@ import type { Product, CreateProductRequest, UpdateProductRequest } from "../typ
  * URL de base de l'API
  * @description Récupère l'URL depuis les variables d'environnement ou utilise la valeur par défaut
  * @type {string}
- * @default 'http://localhost:3002/api/products'
+ * @default 'http://localhost:3000/api/products'
  */
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002/api/products';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/products';
 
 /**
  * Instance Axios configurée pour l'API ProductHub
