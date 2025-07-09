@@ -320,9 +320,9 @@ L'intelligence artificielle a été largement utilisée dans le développement d
 **Kévin Maublanc** - 08/07/2024
 
 ### Contact
-- **Email** : [email]
-- **GitHub** : [github-profile]
-- **LinkedIn** : [linkedin-profile]
+- **Email** : kevmaublanc@gmail.com
+- **GitHub** : https://github.com/silverhawks1010
+- **LinkedIn** : https://www.linkedin.com/in/kevinmaublanc/
 
 ---
 
